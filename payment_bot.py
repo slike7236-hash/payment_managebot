@@ -28,7 +28,7 @@ class OrderProcess(StatesGroup):
 
 # KEYBOARDS (Menyular)
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
-main_menu.add(KeyboardButton("📚 Kitob sotib olish"))
+main_menu.add(KeyboardButton("🛍 Buy a Book"))
 
 cancel_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 cancel_menu.add(KeyboardButton("❌ Jarayonni bekor qilish"))
@@ -117,9 +117,15 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         return
 
     # --- SOTIB OLISH JARRAYONI ---
-    if message.text == "📚 Kitob sotib olish":
+   # 5. "🛍 Buy a Book" TUGMASI BOSILGANDA
+    if message.text == "🛍 Buy a Book":
         await OrderProcess.waiting_for_book_name.set()
-        await message.reply("📝 <b>Iltimos, sotib olmoqchi bo'lgan kitobingiz nomini yozing:</b>", reply_markup=cancel_menu, parse_mode="HTML")
+        await message.reply(
+            "🇺🇿 <b>Iltimos, sotib olmoqchi bo'lgan kitobingiz nomini yozing:</b>\n"
+            "🇬🇧 <b>Please type the name of the book you want to buy:</b>", 
+            reply_markup=cancel_menu, 
+            parse_mode="HTML"
+        )
         return
 
     if message.text == "❌ Jarayonni bekor qilish":
