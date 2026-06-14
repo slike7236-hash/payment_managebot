@@ -40,10 +40,11 @@ async def cmd_start(message: types.Message, state: FSMContext):
     users_list.add(message.from_user.id)
     
     welcome_text = (
-        "<b>👋 My Vocabularies Botiga xush kelibsiz!</b>\n\n"
-        "✨ Bu bot orqali siz o'z so'z boyligingizni oshirish uchun mo'ljallangan "
-        "eng sara interaktiv kitoblarni sotib olishingiz mumkin.\n\n"
-        "👇 Kitob xarid qilishni boshlash uchun pastdagi <b>📚 Kitob sotib olish</b> tugmasini bosing."
+        "💳 <b>🇺🇿 My Vocabularies — To'lov tizimiga xush kelibsiz!</b>\n"
+        "Kitobga to'lov qilish uchun pastdagi <b>🛍 Buy a Book</b> tugmasini bosing.\n\n"
+        "💳 <b>🇬🇧 Welcome to My Vocabularies — Payment Bot!</b>\n"
+        "Click the <b>🛍 Buy a Book</b> button below to pay for the book.\n\n"
+        "👇 👇 👇"
     )
     await message.reply(welcome_text, reply_markup=main_menu, parse_mode="HTML")
 
