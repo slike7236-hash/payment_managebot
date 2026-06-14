@@ -55,148 +55,137 @@ async def cmd_stat(message: types.Message):
     else:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
 
-# 3. ADMIN UCHUN REKLAMA JONATISH (MATN, RASM YOKI VIDEO)
-@dp.message_handler(commands=['reklama'], content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
-async def cmd_broadcast(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.reply("❌ Bu buyruq faqat admin uchun!")
-        return
+# 3. UNIVERSAL REKLAMA FUNKSIYASI (MATN, RASM YOKI VIDEO 100% ISHLAYDI)
+@dp.message_handler(content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
+async def handle_all_messages(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    
+    # Har qanday holatda ham foydalanuvchini bazaga qo'shib boramiz
+    users_list.add(user_id)
 
+    # REKLAMA TEKSHIRUVI (Faqat admin uchun)
+    is_reklama = False
     reklama_text = ""
-    media_type = "text"  # text, photo, video
+    media_type = "text"
     file_id = None
 
-    # 1. Agar rasm bo'lsa
-    if message.photo:
+    # A) Agar rasm bo'lsa va tagida yozuvi bo'lsa
+    if message.photo and message.caption and message.caption.startswith('/reklama'):
+        is_reklama = True
         media_type = "photo"
         file_id = message.photo[-1].file_id
-        if message.caption:
-            reklama_text = message.caption.replace('/reklama', '').strip()
-            
-    # 2. Agar video bo'lsa
-    elif message.video:
+        reklama_text = message.caption.replace('/reklama', '').strip()
+
+    # B) Agar video bo'lsa va tagida yozuvi bo'lsa
+    elif message.video and message.caption and message.caption.startswith('/reklama'):
+        is_reklama = True
         media_type = "video"
         file_id = message.video.file_id
-        if message.caption:
-            reklama_text = message.caption.replace('/reklama', '').strip()
-            
-    # 3. Agar faqat matn bo'lsa
-    else:
-        reklama_text = message.get_args()
+        reklama_text = message.caption.replace('/reklama', '').strip()
 
-    # Hech narsa yuborilmagan bo'lsa tekshirish
-    if not reklama_text and media_type == "text":
-        await message.reply("⚠️ <b>Xato:</b> Reklama matni, rasm yoki videosini yubormadingiz!\n\n<i>Namuna:</i> Video yoki rasm yuklab, tagiga <code>/reklama Matn</code> deb yozing.", parse_mode="HTML")
-        return
+    # C) Agar faqat oddiy matn bo'lsa va /reklama bilan boshlansa
+    elif message.text and message.text.startswith('/reklama'):
+        is_reklama = True
+        media_type = "text"
+        reklama_text = message.text.replace('/reklama', '').strip()
 
-    send_count = 0
-    failed_count = 0
-
-    # Barcha obunachilarga tarqatish
-    for user_id in users_list:
-        try:
-            if media_type == "photo":
-                await bot.send_photo(chat_id=user_id, photo=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
-            elif media_type == "video":
-                await bot.send_video(chat_id=user_id, video=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
-            else:
-                await bot.send_message(chat_id=user_id, text=reklama_text, parse_mode="HTML")
-            send_count += 1
-        except Exception:
-            failed_count += 1
-
-    await message.reply(
-        f"📢 <b>Reklama tarqatish yakunlandi:</b>\n\n"
-        f"✅ Yetkazildi: <b>{send_count}</b> ta obunachiga\n"
-        f"❌ Yetkazilmadi (bloklaganlar): <b>{failed_count}</b> ta",
-        parse_mode="HTML"
-    )
-
-# 4. JARRAYONNI BEKOR QILISH (CANCEL TUGMASI)
-@dp.message_handler(lambda message: message.text == "❌ Jarayonni bekor qilish", state="*")
-async def cancel_order(message: types.Message, state: FSMContext):
-    await state.finish()
-    await message.reply("🔄 Sotib olish jarayoni bekor qilindi. Bosh menyuga qaytdingiz.", reply_markup=main_menu, parse_mode="HTML")
-
-# 5. "KITOB SOTIB OLISH" TUGMASI BOSILGANDA
-@dp.message_handler(lambda message: message.text == "📚 Kitob sotib olish", state="*")
-async def start_order(message: types.Message):
-    users_list.add(message.from_user.id)
-    await OrderProcess.waiting_for_book_name.set()
-    await message.reply(
-        "📝 <b>Iltimos, sotib olmoqchi bo'lgan kitobingiz nomini yozing:</b>",
-        reply_markup=cancel_menu,
-        parse_mode="HTML"
-    )
-
-# 6. KITOB NOMINI QABUL QILISH
-@dp.message_handler(state=OrderProcess.waiting_for_book_name, content_types=types.ContentType.TEXT)
-async def process_book_name(message: types.Message, state: FSMContext):
-    book_name = message.text
-    await state.update_data(chosen_book=book_name)
-    
-    await OrderProcess.next()
-    
-    payment_text = (
-        f"🛒 <b>Siz tanlagan kitob:</b> {book_name}\n\n"
-        "💳 To'lovni amalga oshirish uchun quyidagi karta raqamiga pul o'tkazing:\n"
-        "• <b>Karta raqami:</b> <code>8600 1234 5678 9012</code>\n"
-        "• <b>Mulkdor:</b> Eshmatov Toshmat\n"
-        "• <b>Narxi:</b> 25,000 so'm\n\n"
-        "📥 <b>To'lovdan so'ng:</b> To'lov chekini (skrinshotini) shu yerga rasm ko'rinishida yuboring!"
-    )
-    await message.reply(payment_text, reply_markup=cancel_menu, parse_mode="HTML")
-
-# 7. CHEKNI QABUL QILISH VA ADMINGA YUBORISH
-@dp.message_handler(state=OrderProcess.waiting_for_screenshot, content_types=[types.ContentType.PHOTO, types.ContentType.DOCUMENT])
-async def process_screenshot(message: types.Message, state: FSMContext):
-    user = message.from_user
-    users_list.add(user.id)
-    
-    user_data = await state.get_data()
-    book_name = user_data.get("chosen_book", "Noma'lum kitob")
-    
-    full_name = user.full_name.replace('<', '&lt;').replace('>', '&gt;')
-    username = f"@{user.username}" if user.username else "yo'q"
-    user_caption = message.caption if message.caption else "Izoh qoldirilmadi"
-    
-    admin_alert = (
-        "🔔 <b>Yangi buyurtma va to'lov cheki keldi!</b>\n\n"
-        f"👤 <b>Xaridor:</b> {full_name} ({username})\n"
-        f"🆔 <b>Telegram ID:</b> <code>{user.id}</code>\n"
-        f"📚 <b>Sotib olmoqchi:</b> <u>{book_name}</u>\n"
-        f"📝 <b>Izoh:</b> {user_caption}\n\n"
-        "⚠️ Pulni tekshiring va qaror qabul qiling:"
-    )
-
-    inline_kb = InlineKeyboardMarkup(row_width=2)
-    btn_approve = InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"app_{user.id}_{book_name}")
-    btn_reject = InlineKeyboardButton(text="❌ Rad etish", callback_data=f"rej_{user.id}_{book_name}")
-    inline_kb.add(btn_approve, btn_reject)
-
-    try:
-        if message.photo:
-            file_id = message.photo[-1].file_id
-            await bot.send_photo(chat_id=ADMIN_ID, photo=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
-        elif message.document and message.document.mime_type.startswith('image/'):
-            file_id = message.document.file_id
-            await bot.send_document(chat_id=ADMIN_ID, document=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
-        else:
-            await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
+    # REKLAMA TARQATISH JARAYONI
+    if is_reklama:
+        if user_id != ADMIN_ID:
+            await message.reply("❌ Bu buyruq faqat admin uchun!")
             return
 
+        if not reklama_text and media_type == "text":
+            await message.reply("⚠️ <b>Xato:</b> Reklama matnini yozmadingiz!", parse_mode="HTML")
+            return
+
+        send_count = 0
+        failed_count = 0
+
+        for obunachi_id in users_list:
+            try:
+                if media_type == "photo":
+                    await bot.send_photo(chat_id=obunachi_id, photo=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
+                elif media_type == "video":
+                    await bot.send_video(chat_id=obunachi_id, video=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
+                else:
+                    await bot.send_message(chat_id=obunachi_id, text=reklama_text, parse_mode="HTML")
+                send_count += 1
+            except Exception:
+                failed_count += 1
+
         await message.reply(
-            "⏳ <b>To'lovingiz qabul qilindi va tekshirilmoqda!</b>\n"
-            "Administrator tez orada to'lovni tekshiradi. Iltimos, biroz kuting.", 
-            reply_markup=main_menu,
+            f"📢 <b>Reklama tarqatish yakunlandi:</b>\n\n"
+            f"✅ Yetkazildi: <b>{send_count}</b> ta obunachiga\n"
+            f"❌ Yetkazilmadi (bloklaganlar): <b>{failed_count}</b> ta",
             parse_mode="HTML"
         )
-        await state.finish()
-        
-    except Exception as e:
-        await message.reply(f"❌ Xatolik yuz berdi: {e}")
+        return  # Reklama tugadi, pastdagi kitob sotib olish kodlariga o'tib ketmasligi uchun
 
-# 8. ADMIN QAROR QABUL QILGANDA (TUGMALAR)
+    # --- SOTIB OLISH JARRAYONI (ESKI TIZIMNING O'ZI) ---
+    if message.text == "📚 Kitob sotib olish":
+        await OrderProcess.waiting_for_book_name.set()
+        await message.reply("📝 <b>Iltimos, sotib olmoqchi bo'lgan kitobingiz nomini yozing:</b>", reply_markup=cancel_menu, parse_mode="HTML")
+        return
+
+    if message.text == "❌ Jarayonni bekor qilish":
+        await state.finish()
+        await message.reply("🔄 Sotib olish jarayoni bekor qilindi. Bosh menyuga qaytdingiz.", reply_markup=main_menu, parse_mode="HTML")
+        return
+
+    # FSM bosqichlari (Kitob nomi va Chek qabul qilish)
+    current_state = await state.get_state()
+    if current_state == OrderProcess.waiting_for_book_name.state:
+        if message.text:
+            await state.update_data(chosen_book=message.text)
+            await OrderProcess.next()
+            payment_text = (
+                f"🛒 <b>Siz tanlagan kitob:</b> {message.text}\n\n"
+                "💳 To'lovni amalga oshirish uchun quyidagi karta raqamiga pul o'tkazing:\n"
+                "• <b>Karta raqami:</b> <code>8600 1234 5678 9012</code>\n"
+                "• <b>Mulkdor:</b> Eshmatov Toshmat\n"
+                "• <b>Narxi:</b> 25,000 so'm\n\n"
+                "📥 <b>To'lovdan so'ng:</b> To'lov chekini (skrinshotini) shu yerga rasm ko'rinishida yuboring!"
+            )
+            await message.reply(payment_text, reply_markup=cancel_menu, parse_mode="HTML")
+        return
+
+    if current_state == OrderProcess.waiting_for_screenshot.state:
+        if message.photo or (message.document and message.document.mime_type.startswith('image/')):
+            user_data = await state.get_data()
+            book_name = user_data.get("chosen_book", "Noma'lum kitob")
+            full_name = message.from_user.full_name.replace('<', '&lt;').replace('>', '&gt;')
+            username = f"@{message.from_user.username}" if message.from_user.username else "yo'q"
+            user_caption = message.caption if message.caption else "Izoh qoldirilmadi"
+            
+            admin_alert = (
+                "🔔 <b>Yangi buyurtma va to'lov cheki keldi!</b>\n\n"
+                f"👤 <b>Xaridor:</b> {full_name} ({username})\n"
+                f"🆔 <b>Telegram ID:</b> <code>{message.from_user.id}</code>\n"
+                f"📚 <b>Sotib olmoqchi:</b> <u>{book_name}</u>\n"
+                f"📝 <b>Izoh:</b> {user_caption}\n\n"
+                "⚠️ Pulni tekshiring va qaror qabul qiling:"
+            )
+
+            inline_kb = InlineKeyboardMarkup(row_width=2)
+            btn_approve = InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"app_{message.from_user.id}_{book_name}")
+            btn_reject = InlineKeyboardButton(text="❌ Rad etish", callback_data=f"rej_{message.from_user.id}_{book_name}")
+            inline_kb.add(btn_approve, btn_reject)
+
+            if message.photo:
+                file_id = message.photo[-1].file_id
+                await bot.send_photo(chat_id=ADMIN_ID, photo=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
+            else:
+                file_id = message.document.file_id
+                await bot.send_document(chat_id=ADMIN_ID, document=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
+
+            await message.reply("⏳ <b>To'lovingiz qabul qilindi va tekshirilmoqda!</b>\nAdministrator tez orada to'lovni tekshiradi.", reply_markup=main_menu, parse_mode="HTML")
+            await state.finish()
+        else:
+            await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
+        return
+
+# 4. ADMIN QAROR QABUL QILGANDA (TUGMALAR)
 @dp.callback_query_handler(lambda call: call.data.startswith(('app_', 'rej_')), state="*")
 async def admin_decision(call: types.CallbackQuery):
     data_parts = call.data.split('_')
