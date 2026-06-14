@@ -31,7 +31,7 @@ main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(KeyboardButton("🛍 Buy a Book"))
 
 cancel_menu = ReplyKeyboardMarkup(resize_keyboard=True)
-cancel_menu.add(KeyboardButton("❌ Jarayonni bekor qilish"))
+cancel_menu.add(KeyboardButton("❌ Cancel"))
 
 # 1. /START BOSILGANDA
 @dp.message_handler(commands=['start'], state="*")
@@ -128,9 +128,14 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         )
         return
 
-    if message.text == "❌ Jarayonni bekor qilish":
+    if message.text == "❌ Cancel":
         await state.finish()
-        await message.reply("🔄 Sotib olish jarayoni bekor qilindi. Bosh menyuga qaytdingiz.", reply_markup=main_menu, parse_mode="HTML")
+        await message.reply(
+            "🇺🇿 To'lov jarayoni bekor qilindi. Bosh menyuga qaytdingiz.\n"
+            "🇬🇧 Payment process has been canceled. Returned to the main menu.", 
+            reply_markup=main_menu, 
+            parse_mode="HTML"
+        )
         return
 
     current_state = await state.get_state()
