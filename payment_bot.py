@@ -146,11 +146,17 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
             await OrderProcess.next()
             payment_text = (
                 f"🛒 <b>🇺🇿 Tanlangan kitob / 🇬🇧 Chosen book:</b> {message.text}\n\n"
-                "💳 <b>🇺🇿 TO'LOV:</b> To'lovni amalga oshirish uchun quyidagi karta raqamiga pul o'tkazing:\n"
-                "💳 <b>🇬🇧 PAYMENT:</b> To proceed with the payment, transfer the funds to the card below:\n\n"
-                "• <b>Card Number:</b> <code>8600 1234 5678 9012</code>\n"  # <--- O'zingiznikiga almashtirishingiz mumkin
-                "• <b>Holder:</b> Eshmatov Toshmat\n"                      # <--- Ismingizni yozishingiz mumkin
-                "• <b>Price:</b> 25,000 UZS / $2.00\n\n"
+                "💳 <b>🇺🇿 TO'LOV:</b> To'lovni amalga oshirish uchun quyidagi karta raqamlaridan biriga pul o'tkazing:\n"
+                "💳 <b>🇬🇧 PAYMENT:</b> To proceed with the payment, transfer the funds to one of the cards below:\n\n"
+                "🇺🇿 <b>National Card (Uzcard/Humo):</b>\n"
+                "• <b>Card Number:</b> <code>5414683858776628</code>\n"  # <-- Bu yerga Uzcard/Humo raqamini yozing
+                "• <b>Holder:</b> Abdugani Yoldoshev\n"
+                "• <b>Price:</b> 25,000 UZS\n\n"
+                "🌐 <b>International Card (Visa):</b>\n"
+                "• <b>Card Number:</b> <code>4466136910024448</code>\n"  # <-- Bu yerga Visa karta raqamini yozing
+                "• <b>Holder:</b> Abdugani Yoldoshev\n"
+                "• <b>Price:</b> $2.00 USD\n\n"
+                "--- --- --- --- --- --- --- --- ---\n"
                 "📥 <b>🇺🇿 To'lovdan so'ng:</b> Chekni (skrinshotni) rasm ko'rinishida shu yerga yuboring!\n"
                 "📥 <b>🇬🇧 After payment:</b> Send the receipt (screenshot) here as a photo!"
             )
