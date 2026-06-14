@@ -7,8 +7,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 logging.basicConfig(level=logging.INFO)
 
 # SOZLAMALAR
-API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # @BotFather bergan token
-ADMIN_ID = 651936747  # Sizning aniq Telegram ID raqamingiz
+API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # Sizning tokeningiz kiritildi!
+ADMIN_ID = 651936747  # Sizning shaxsiy Telegram ID raqamingiz
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
@@ -22,38 +22,43 @@ async def cmd_start(message: types.Message):
         "💳 <b>Karta raqami:</b> <code>8600 1234 5678 9012</code>\n"
         "👤 <b>Mulkdor:</b> Eshmatov Toshmat\n"
         "💵 <b>Narxi:</b> 25,000 so'm\n\n"
-        "📥 <b>To'lovdan so'ng:</b> Chekni (skrinshotni) shu yerga rasm ko'rinishida yuboring "
-        "va rasm izohiga (caption) Mini App ichidagi shaxsiy ID raqamingizni yozib qoldiring!"
+        "📥 <b>To'lovdan so'ng:</b> To'lov chekini (skrinshotini) shu yerga rasm ko'rinishida yuboring.\n"
+        "<i>(Sizdan hech qanday ID raqam talab qilinmaydi, bot hamma ma'lumotni o'zi aniqlaydi!)</i>"
     )
     await message.reply(welcome_text, parse_mode="HTML")
 
-# 2. RASMLARNI XATOLIKSIZ QABUL QILISH
+# 2. RASMLARNI AVTOMATIK ID ANIQLASH BILAN QABUL QILISH
 @dp.message_handler(content_types=[types.ContentType.PHOTO, types.ContentType.DOCUMENT])
 async def handle_screenshot(message: types.Message):
     user = message.from_user
-    caption_text = message.caption if message.caption else "ID raqam yozilmadi"
     
-    # Ismdagi xavfli belgilarni zararsizlantirish
+    # Foydalanuvchi ismidagi maxsus belgilarni tozalash (Xatolik bermasligi uchun)
     full_name = user.full_name.replace('<', '&lt;').replace('>', '&gt;')
-    username = user.username if user.username else "yo'q"
+    username = f"@{user.username}" if user.username else "yo'q"
     
-    # Adminga yuboriladigan matn (HTML formatida)
+    # Agar rasm tagida izoh yozgan bo'lsa, uni ham qo'shib yuboramiz
+    user_caption = message.caption if message.caption else "Izoh qoldirilmadi"
+    
+    # Adminga (Sizga) boradigan to'liq ma'lumotli xabar
     admin_alert = (
         "🔔 <b>Yangi to'lov cheki keldi!</b>\n\n"
-        f"👤 <b>Kimdan:</b> {full_name} (@{username})\n"
-        f"🆔 <b>Xaridor Telegram ID:</b> <code>{user.id}</code>\n"
-        f"📝 <b>Xaridor yozgan ID/Izoh:</b> <code>{caption_text}</code>\n\n"
-        "⚠️ Pul tushganini tekshiring va ushbu ID raqamni Mini App kodingizga qo'shing."
+        f"👤 <b>Foydalanuvchi:</b> {full_name} ({username})\n"
+        f"🆔 <b>Telegram ID (Nusxa olinadigan):</b> <code>{user.id}</code>\n"
+        f"📝 <b>Xaridor yozgan izoh:</b> {user_caption}\n\n"
+        "⚠️ Pul tushganini tekshiring. Agar hammasi to'g'ri bo'lsa, yuqoridagi Telegram ID raqamni nusxalab, Mini App kodingizdagi ruxsat berilganlar ro'yxatiga qo'shing."
     )
 
+    # Tagida qulaylik uchun ID nusxalash tugmasi
     inline_kb = InlineKeyboardMarkup()
     btn_copy = InlineKeyboardButton(text="📋 ID'dan nusxa olish", callback_data=f"copy_{user.id}")
     inline_kb.add(btn_copy)
 
     try:
+        # Oddiy rasm formatida kelganda
         if message.photo:
             file_id = message.photo[-1].file_id
             await bot.send_photo(chat_id=ADMIN_ID, photo=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
+        # Fayl formatida rasm kelganda
         elif message.document and message.document.mime_type.startswith('image/'):
             file_id = message.document.file_id
             await bot.send_document(chat_id=ADMIN_ID, document=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
@@ -61,7 +66,8 @@ async def handle_screenshot(message: types.Message):
             await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
             return
 
-        await message.reply("✅ <b>Chekingiz qabul qilindi!</b>\nAdministrator tez orada uni tekshirib, kitobingizni ochib beradi.")
+        # Foydalanuvchiga tasdiq
+        await message.reply("✅ <b>Chekingiz qabul qilindi!</b>\nAdministrator tez orada to'lovni tekshirib, kitobingizni faollashtirib beradi.")
         
     except Exception as e:
         logging.error(f"Xatolik yuz berdi: {e}")
