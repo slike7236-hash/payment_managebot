@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 logging.basicConfig(level=logging.INFO)
 
 # TELEGRAM SOZLAMALARI
-API_TOKEN = 'BU_YERGA_BOT_TOKENINGIZNI_YOZING'  # @BotFather bergan token
+API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # @BotFather bergan token
 ADMIN_ID = 651936747  # Sizning shaxsiy Telegram ID raqamingiz (Cheklar shu yerga boradi)
 
 bot = Bot(token=API_TOKEN)
