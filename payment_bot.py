@@ -55,41 +55,34 @@ async def cmd_stat(message: types.Message):
     else:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
 
-# 3. UNIVERSAL REKLAMA FUNKSIYASI (MATN, RASM YOKI VIDEO 100% ISHLAYDI)
+# 3. UNIVERSAL REKLAMA FUNKSIYASI
 @dp.message_handler(content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
 async def handle_all_messages(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
-    
-    # Har qanday holatda ham foydalanuvchini bazaga qo'shib boramiz
     users_list.add(user_id)
 
-    # REKLAMA TEKSHIRUVI (Faqat admin uchun)
     is_reklama = False
     reklama_text = ""
     media_type = "text"
     file_id = None
 
-    # A) Agar rasm bo'lsa va tagida yozuvi bo'lsa
     if message.photo and message.caption and message.caption.startswith('/reklama'):
         is_reklama = True
         media_type = "photo"
         file_id = message.photo[-1].file_id
         reklama_text = message.caption.replace('/reklama', '').strip()
 
-    # B) Agar video bo'lsa va tagida yozuvi bo'lsa
     elif message.video and message.caption and message.caption.startswith('/reklama'):
         is_reklama = True
         media_type = "video"
         file_id = message.video.file_id
         reklama_text = message.caption.replace('/reklama', '').strip()
 
-    # C) Agar faqat oddiy matn bo'lsa va /reklama bilan boshlansa
     elif message.text and message.text.startswith('/reklama'):
         is_reklama = True
         media_type = "text"
         reklama_text = message.text.replace('/reklama', '').strip()
 
-    # REKLAMA TARQATISH JARAYONI
     if is_reklama:
         if user_id != ADMIN_ID:
             await message.reply("❌ Bu buyruq faqat admin uchun!")
@@ -120,9 +113,9 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
             f"❌ Yetkazilmadi (bloklaganlar): <b>{failed_count}</b> ta",
             parse_mode="HTML"
         )
-        return  # Reklama tugadi, pastdagi kitob sotib olish kodlariga o'tib ketmasligi uchun
+        return
 
-    # --- SOTIB OLISH JARRAYONI (ESKI TIZIMNING O'ZI) ---
+    # --- SOTIB OLISH JARRAYONI ---
     if message.text == "📚 Kitob sotib olish":
         await OrderProcess.waiting_for_book_name.set()
         await message.reply("📝 <b>Iltimos, sotib olmoqchi bo'lgan kitobingiz nomini yozing:</b>", reply_markup=cancel_menu, parse_mode="HTML")
@@ -133,7 +126,6 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         await message.reply("🔄 Sotib olish jarayoni bekor qilindi. Bosh menyuga qaytdingiz.", reply_markup=main_menu, parse_mode="HTML")
         return
 
-    # FSM bosqichlari (Kitob nomi va Chek qabul qilish)
     current_state = await state.get_state()
     if current_state == OrderProcess.waiting_for_book_name.state:
         if message.text:
@@ -185,7 +177,7 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
             await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
         return
 
-# 4. ADMIN QAROR QABUL QILGANDA (TUGMALAR)
+# 4. ADMIN QAROR QABUL QILGANDA (TEZKOR VERSİYA)
 @dp.callback_query_handler(lambda call: call.data.startswith(('app_', 'rej_')), state="*")
 async def admin_decision(call: types.CallbackQuery):
     data_parts = call.data.split('_')
@@ -194,6 +186,14 @@ async def admin_decision(call: types.CallbackQuery):
     book_name = data_parts[2]
     
     if action == 'app':
+        # 1. BIRINCHI BO'LIB ADMIN EKRANINI YANGILAYMIZ (Kutish vaqtini yo'qotish uchun)
+        try:
+            await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", parse_mode="HTML")
+            await call.answer("To'lov tasdiqlandi!", show_alert=False)
+        except Exception as e:
+            logging.error(f"Admin ekranni yangilashda xato: {e}")
+
+        # 2. KEYIN ORQA FONDA FOYDALANUVCHIGA XABAR YUBORAMIZ
         try:
             success_message = (
                 f"🎉 <b>Ajoyib xabar!</b>\n\n"
@@ -201,12 +201,18 @@ async def admin_decision(call: types.CallbackQuery):
                 f"🚀 Biz siz uchun ushbu kitobni ochib qo'ydik. Mini App'ga kirib foydalanishingiz mumkin!"
             )
             await bot.send_message(chat_id=buyer_id, text=success_message, parse_mode="HTML")
-            await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", parse_mode="HTML")
-            await call.answer("To'lov tasdiqlandi!", show_alert=True)
         except Exception as e:
-            await call.answer(f"Xato: {e}", show_alert=True)
+            logging.error(f"Xaridorga tasdiq xabarini yuborishda xato: {e}")
             
     elif action == 'rej':
+        # 1. BIRINCHI BO'LIB ADMIN EKRANINI YANGILAYMIZ
+        try:
+            await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", parse_mode="HTML")
+            await call.answer("To'lov rad etildi!", show_alert=False)
+        except Exception as e:
+            logging.error(f"Admin ekranni yangilashda xato: {e}")
+
+        # 2. KEYIN ORQA FONDA FOYDALANUVCHIGA XABAR YUBORAMIZ
         try:
             reject_message = (
                 f"⚠️ <b>To'lov tasdiqlanmadi!</b>\n\n"
@@ -214,10 +220,8 @@ async def admin_decision(call: types.CallbackQuery):
                 f"Iltimos, pul ko'chirmasini qaytadan tekshirib ko'ring yoki adminga murojaat qiling."
             )
             await bot.send_message(chat_id=buyer_id, text=reject_message, parse_mode="HTML")
-            await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", parse_mode="HTML")
-            await call.answer("To'lov rad etildi!", show_alert=True)
         except Exception as e:
-            await call.answer(f"Xato: {e}", show_alert=True)
+            logging.error(f"Xaridorga rad etish xabarini yuborishda xato: {e}")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
