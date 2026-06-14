@@ -10,7 +10,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 logging.basicConfig(level=logging.INFO)
 
 # SOZLAMALAR
-API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # Tokeningiz kiritilgan
+API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # Tokeningiz
 ADMIN_ID = 651936747  # Sizning Telegram ID raqamingiz
 
 # FSM Storage
@@ -18,7 +18,7 @@ storage = MemoryStorage()
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=storage)
 
-# OBUNACHILAR RO'YXATI (Reklama va Statistika uchun)
+# OBUNACHILAR RO'YXATI
 users_list = set()
 
 # DIALOG BOSQICHLARI (STATES)
@@ -37,7 +37,7 @@ cancel_menu.add(KeyboardButton("❌ Jarayonni bekor qilish"))
 @dp.message_handler(commands=['start'], state="*")
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.finish()
-    users_list.add(message.from_user.id)  # Foydalanuvchini ro'yxatga qo'shish
+    users_list.add(message.from_user.id)
     
     welcome_text = (
         "<b>👋 My Vocabularies Botiga xush kelibsiz!</b>\n\n"
@@ -55,24 +55,52 @@ async def cmd_stat(message: types.Message):
     else:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
 
-# 3. ADMIN UCHUN REKLAMA JONATISH BUYRUG'I
-@dp.message_handler(commands=['reklama'], state="*")
+# 3. ADMIN UCHUN REKLAMA JONATISH (MATN, RASM YOKI VIDEO)
+@dp.message_handler(commands=['reklama'], content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
 async def cmd_broadcast(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
         return
 
-    reklama_text = message.get_args()
-    if not reklama_text:
-        await message.reply("⚠️ <b>Xato:</b> Reklama matnini yozmadingiz!\n\n<i>Namuna:</i> <code>/reklama Ertaga hamma kitoblarga 50% chegirma!</code>", parse_mode="HTML")
+    reklama_text = ""
+    media_type = "text"  # text, photo, video
+    file_id = None
+
+    # 1. Agar rasm bo'lsa
+    if message.photo:
+        media_type = "photo"
+        file_id = message.photo[-1].file_id
+        if message.caption:
+            reklama_text = message.caption.replace('/reklama', '').strip()
+            
+    # 2. Agar video bo'lsa
+    elif message.video:
+        media_type = "video"
+        file_id = message.video.file_id
+        if message.caption:
+            reklama_text = message.caption.replace('/reklama', '').strip()
+            
+    # 3. Agar faqat matn bo'lsa
+    else:
+        reklama_text = message.get_args()
+
+    # Hech narsa yuborilmagan bo'lsa tekshirish
+    if not reklama_text and media_type == "text":
+        await message.reply("⚠️ <b>Xato:</b> Reklama matni, rasm yoki videosini yubormadingiz!\n\n<i>Namuna:</i> Video yoki rasm yuklab, tagiga <code>/reklama Matn</code> deb yozing.", parse_mode="HTML")
         return
 
     send_count = 0
     failed_count = 0
 
+    # Barcha obunachilarga tarqatish
     for user_id in users_list:
         try:
-            await bot.send_message(chat_id=user_id, text=reklama_text, parse_mode="HTML")
+            if media_type == "photo":
+                await bot.send_photo(chat_id=user_id, photo=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
+            elif media_type == "video":
+                await bot.send_video(chat_id=user_id, video=file_id, caption=reklama_text if reklama_text else None, parse_mode="HTML")
+            else:
+                await bot.send_message(chat_id=user_id, text=reklama_text, parse_mode="HTML")
             send_count += 1
         except Exception:
             failed_count += 1
@@ -101,7 +129,7 @@ async def start_order(message: types.Message):
         parse_mode="HTML"
     )
 
-# 6. KITOB NOMINI QABUL QILISH VA KARTANI KO'RSATISH
+# 6. KITOB NOMINI QABUL QILISH
 @dp.message_handler(state=OrderProcess.waiting_for_book_name, content_types=types.ContentType.TEXT)
 async def process_book_name(message: types.Message, state: FSMContext):
     book_name = message.text
