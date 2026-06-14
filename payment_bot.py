@@ -3,17 +3,17 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# LOGGING SOZLAMALARI (Bot holatini kuzatish uchun)
+# LOGGING
 logging.basicConfig(level=logging.INFO)
 
-# TELEGRAM SOZLAMALARI
+# SOZLAMALAR (Shu yerga o'z ma'lumotlaringizni yozing)
 API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # @BotFather bergan token
-ADMIN_ID = 651936747  # Sizning shaxsiy Telegram ID raqamingiz (Cheklar shu yerga boradi)
+ADMIN_ID = 651936747  # Sizning aniq Telegram ID raqamingiz
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
-# 1. FOYDALANUVCHIGA /START BUYRUG'I JAVOBI
+# 1. /START BUYRUG'I
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message):
     welcome_text = (
@@ -27,37 +27,45 @@ async def cmd_start(message: types.Message):
     )
     await message.reply(welcome_text, parse_mode="Markdown")
 
-# 2. FOYDALANUVCHIDAN RASMLI CHEKNI QABUL QILISH VA ADMINGA YUBORISH
-@dp.message_handler(content_types=['photo'])
+# 2. HAR QANDAY RASM YOKI FAYL KO'RINISHIDAGI RASMNI USHLASH
+@dp.message_handler(content_types=[types.ContentType.PHOTO, types.ContentType.DOCUMENT])
 async def handle_screenshot(message: types.Message):
     user = message.from_user
     caption_text = message.caption if message.caption else "ID raqam yozilmadi"
     
-    # Sizga (Adminga) boradigan bildirishnoma matni
+    # Adminga yuboriladigan matn
     admin_alert = (
         "🔔 **Yangi to'lov cheki keldi!**\n\n"
-        "👤 **Kimdan:** {user.full_name} (@{user.username})\n"
-        "🆔 **Xaridor Telegram ID:** `{user.id}`\n"
-        "📝 **Xaridor yozgan ID/Izoh:** `{caption_text}`\n\n"
-        "⚠️ Pul tushganini tekshiring va ushbu ID raqamni GitHub'dagi Mini App kodingizga qo'shing."
-    ).format(user=user, caption_text=caption_text)
+        f"👤 **Kimdan:** {user.full_name} (@{user.username})\n"
+        f"🆔 **Xaridor Telegram ID:** `{user.id}`\n"
+        f"📝 **Xaridor yozgan ID/Izoh:** `{caption_text}`\n\n"
+        "⚠️ Pul tushganini tekshiring va ushbu ID raqamni GitHub kodingizga qo'shing."
+    )
 
-    # Adminga kelgan xabar tagida ID nusxalash tugmasi
     inline_kb = InlineKeyboardMarkup()
     btn_copy = InlineKeyboardButton(text="📋 ID'dan nusxa olish", callback_data=f"copy_{user.id}")
     inline_kb.add(btn_copy)
 
-    # Chek rasmini sizga yo'naltirish
-    await bot.send_photo(
-        chat_id=ADMIN_ID, 
-        photo=message.photo[-1].file_id, 
-        caption=admin_alert, 
-        reply_markup=inline_kb,
-        parse_mode="Markdown"
-    )
-    
-    # Xaridorga tasdiq xabari
-    await message.reply("✅ **Chekingiz qabul qilindi!**\nAdministrator tez orada uni tekshirib, kitobingizni ochib beradi.")
+    try:
+        # Agar oddiy rasm bo'lsa
+        if message.photo:
+            file_id = message.photo[-1].file_id
+            await bot.send_photo(chat_id=ADMIN_ID, photo=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="Markdown")
+        # Agar fayl ko'rinishidagi rasm bo'lsa
+        elif message.document and message.document.mime_type.startswith('image/'):
+            file_id = message.document.file_id
+            await bot.send_document(chat_id=ADMIN_ID, document=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="Markdown")
+        else:
+            await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
+            return
+
+        # Foydalanuvchiga muvaffaqiyatli javob
+        await message.reply("✅ **Chekingiz qabul qilindi!**\nAdministrator tez orada uni tekshirib, kitobingizni ochib beradi.")
+        
+    except Exception as e:
+        # Agar adminga yuborishda xato bo'lsa, foydalanuvchiga bildiradi
+        logging.error(f"Xatolik yuz berdi: {e}")
+        await message.reply(f"❌ Xabar adminga yetkazilmadi. Xatolik: {e}")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
