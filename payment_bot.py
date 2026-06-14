@@ -26,14 +26,14 @@ class OrderProcess(StatesGroup):
     waiting_for_book_name = State()
     waiting_for_screenshot = State()
 
-# KEYBOARDS (Menyular)
+# KEYBOARDS (Menyular - FAQAT INGLIZ TILIDA MINIMALIST)
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(KeyboardButton("🛍 Buy a Book"))
 
 cancel_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 cancel_menu.add(KeyboardButton("❌ Cancel"))
 
-# 1. /START BOSILGANDA
+# 1. /START BOSILGANDA (IKKI TILLI VA JOZIBADOR)
 @dp.message_handler(commands=['start'], state="*")
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.finish()
@@ -56,7 +56,7 @@ async def cmd_stat(message: types.Message):
     else:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
 
-# 3. UNIVERSAL REKLAMA FUNKSIYASI
+# 3. UNIVERSAL REKLAMA FUNKSIYASI (MATN, RASM, VIDEO)
 @dp.message_handler(content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
 async def handle_all_messages(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
@@ -116,8 +116,7 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         )
         return
 
-    # --- SOTIB OLISH JARRAYONI ---
-   # 5. "🛍 Buy a Book" TUGMASI BOSILGANDA
+    # --- SOTIB OLISH JARAYONI ---
     if message.text == "🛍 Buy a Book":
         await OrderProcess.waiting_for_book_name.set()
         await message.reply(
@@ -139,22 +138,37 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         return
 
     current_state = await state.get_state()
+    
+    # Kitob nomini qabul qilish bosqichi
     if current_state == OrderProcess.waiting_for_book_name.state:
         if message.text:
             await state.update_data(chosen_book=message.text)
             await OrderProcess.next()
             payment_text = (
-                f"🛒 <b>Siz tanlagan kitob:</b> {message.text}\n\n"
-                "💳 To'lovni amalga oshirish uchun quyidagi karta raqamiga pul o'tkazing:\n"
-                "• <b>Karta raqami:</b> <code>8600 1234 5678 9012</code>\n"
-                "• <b>Mulkdor:</b> Eshmatov Toshmat\n"
-                "• <b>Narxi:</b> 25,000 so'm\n\n"
-                "📥 <b>To'lovdan so'ng:</b> To'lov chekini (skrinshotini) shu yerga rasm ko'rinishida yuboring!"
+                f"🛒 <b>🇺🇿 Tanlangan kitob / 🇬🇧 Chosen book:</b> {message.text}\n\n"
+                "💳 <b>🇺🇿 TO'LOV:</b> To'lovni amalga oshirish uchun quyidagi karta raqamiga pul o'tkazing:\n"
+                "💳 <b>🇬🇧 PAYMENT:</b> To proceed with the payment, transfer the funds to the card below:\n\n"
+                "• <b>Card Number:</b> <code>8600 1234 5678 9012</code>\n"  # <--- O'zingiznikiga almashtirishingiz mumkin
+                "• <b>Holder:</b> Eshmatov Toshmat\n"                      # <--- Ismingizni yozishingiz mumkin
+                "• <b>Price:</b> 25,000 UZS / $2.00\n\n"
+                "📥 <b>🇺🇿 To'lovdan so'ng:</b> Chekni (skrinshotni) rasm ko'rinishida shu yerga yuboring!\n"
+                "📥 <b>🇬🇧 After payment:</b> Send the receipt (screenshot) here as a photo!"
             )
             await message.reply(payment_text, reply_markup=cancel_menu, parse_mode="HTML")
         return
 
+    # Chekni (skrinshotni) qabul qilish bosqichi
     if current_state == OrderProcess.waiting_for_screenshot.state:
+        if message.text == "❌ Cancel":
+            await state.finish()
+            await message.reply(
+                "🇺🇿 To'lov jarayoni bekor qilindi. Bosh menyuga qaytdingiz.\n"
+                "🇬🇧 Payment process has been canceled. Returned to the main menu.", 
+                reply_markup=main_menu, 
+                parse_mode="HTML"
+            )
+            return
+
         if message.photo or (message.document and message.document.mime_type.startswith('image/')):
             user_data = await state.get_data()
             book_name = user_data.get("chosen_book", "Noma'lum kitob")
@@ -183,16 +197,26 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
                 file_id = message.document.file_id
                 await bot.send_document(chat_id=ADMIN_ID, document=file_id, caption=admin_alert, reply_markup=inline_kb, parse_mode="HTML")
 
-            await message.reply("⏳ <b>To'lovingiz qabul qilindi va tekshirilmoqda!</b>\nAdministrator tez orada to'lovni tekshiradi.", reply_markup=main_menu, parse_mode="HTML")
+            await message.reply(
+                "⏳ <b>🇺🇿 To'lovingiz qabul qilindi va tekshirilmoqda!</b>\n"
+                "Administrator tez orada to'lovni tekshiradi. Iltimos, biroz kuting.\n\n"
+                "⏳ <b>🇬🇧 Your payment has been received and is being verified!</b>\n"
+                "The administrator will check the payment shortly. Please wait a moment.", 
+                reply_markup=main_menu,
+                parse_mode="HTML"
+            )
             await state.finish()
         else:
-            await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
+            await message.reply(
+                "❌ <b>🇺🇿 Xato:</b> Iltimos, faqat rasm formatidagi chekni yuboring!\n"
+                "❌ <b>🇬🇧 Error:</b> Please send the receipt in photo format only!",
+                parse_mode="HTML"
+            )
         return
 
-# 4. ADMIN QAROR QABUL QILGANDA (ENG ULTRA-TEZKOR VARIANT)
+# 4. ADMIN QAROR QABUL QILGANDA (CHAQMOQ TEZLIGIDA VA APDEYTLI)
 @dp.callback_query_handler(lambda call: call.data.startswith(('app_', 'rej_')), state="*")
 async def admin_decision(call: types.CallbackQuery):
-    # ENG MUHIMI: Telegram'ga sarlavhani uzatib, so'rovni darhol tasdiqlaymiz (Sekinlashuvni butunlay yo'qotadi)
     try:
         await call.answer()
     except Exception:
@@ -210,36 +234,38 @@ async def admin_decision(call: types.CallbackQuery):
             pass
 
     if action == 'app':
-        # Admin xabarini tezkor yangilash va tugmalarni o'chirish
         try:
             await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", reply_markup=None, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # Orqa fonda foydalanuvchiga yuborish
         try:
             success_message = (
-                f"🎉 <b>Ajoyib xabar!</b>\n\n"
-                f"✅ Sizning <b>{book_name}</b> uchun qilgan to'lovingiz muvaffaqiyatli tasdiqlandi!\n"
-                f"🚀 Biz siz uchun ushbu kitobni ochib qo'ydik. Mini App'ga kirib foydalanishingiz mumkin!"
+                f"🎉 <b>🇺🇿 Tasdiqlandi!</b>\n"
+                f"Sizning <b>{book_name}</b> kitobi uchun to'lovingiz muvaffaqiyatli qabul qilindi. "
+                f"Kitob ochildi! Mini App'ga kirib foydalanishingiz mumkin.\n\n"
+                f"🎉 <b>🇬🇧 Confirmed!</b>\n"
+                f"Your payment for the book <b>{book_name}</b> has been successfully accepted. "
+                f"The book is unlocked! You can now access it in the Mini App."
             )
             await bot.send_message(chat_id=buyer_id, text=success_message, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Xaridorga yuborishda xato: {e}")
             
     elif action == 'rej':
-        # Admin xabarini tezkor yangilash va tugmalarni o'chirish
         try:
             await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", reply_markup=None, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # Orqa fonda foydalanuvchiga yuborish
         try:
             reject_message = (
-                f"⚠️ <b>To'lov tasdiqlanmadi!</b>\n\n"
-                f"Kechirasiz, siz yuborgan chek orqali <b>{book_name}</b> uchun to'lov topilmadi.\n"
-                f"Iltimos, pul ko'chirmasini qaytadan tekshirib ko'ring yoki adminga murojaat qiling."
+                f"⚠️ <b>🇺🇿 To'lov tasdiqlanmadi!</b>\n"
+                f"Kechirasiz, siz yuborgan chek orqali to'lov topilmadi yoki xato rasm yuborildi. "
+                f"Iltimos, qayta tekshiring yoki adminga murojaat qiling.\n\n"
+                f"⚠️ <b>🇬🇧 Payment Declined!</b>\n"
+                f"Sorry, no payment was found with the receipt provided, or the image is incorrect. "
+                f"Please double-check or contact the administrator."
             )
             await bot.send_message(chat_id=buyer_id, text=reject_message, parse_mode="HTML")
         except Exception as e:
