@@ -159,7 +159,6 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
                 "⚠️ Pulni tekshiring va qaror qabul qiling:"
             )
 
-            # Callback_data ichidan kitob nomini olib tashladik (Xatolik bermasligi uchun)
             inline_kb = InlineKeyboardMarkup(row_width=2)
             btn_approve = InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"app_{message.from_user.id}")
             btn_reject = InlineKeyboardButton(text="❌ Rad etish", callback_data=f"rej_{message.from_user.id}")
@@ -178,30 +177,34 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
             await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
         return
 
-# 4. ADMIN QAROR QABUL QILGANDA (ENG TEZKOR VA XATOSIZ VERSIYA)
+# 4. ADMIN QAROR QABUL QILGANDA (ENG ULTRA-TEZKOR VARIANT)
 @dp.callback_query_handler(lambda call: call.data.startswith(('app_', 'rej_')), state="*")
 async def admin_decision(call: types.CallbackQuery):
+    # ENG MUHIMI: Telegram'ga sarlavhani uzatib, so'rovni darhol tasdiqlaymiz (Sekinlashuvni butunlay yo'qotadi)
+    try:
+        await call.answer()
+    except Exception:
+        pass
+
     data_parts = call.data.split('_')
     action = data_parts[0]
     buyer_id = int(data_parts[1])
     
-    # Kitob nomini xabar matnining o'zidan qidirib topamiz
     book_name = "Tanlangan kitob"
-    if "Sotib olmoqchi:" in call.message.caption:
+    if call.message.caption and "Sotib olmoqchi:" in call.message.caption:
         try:
             book_name = call.message.caption.split("Sotib olmoqchi:")[1].split("\n")[0].strip()
         except Exception:
             pass
 
     if action == 'app':
-        # 1. Admin ekranini bir lahzada yangilash
+        # Admin xabarini tezkor yangilash va tugmalarni o'chirish
         try:
-            await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", parse_mode="HTML")
-            await call.answer("To'lov tasdiqlandi!", show_alert=False)
+            await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", reply_markup=None, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # 2. Orqa fonda xaridorga yuborish
+        # Orqa fonda foydalanuvchiga yuborish
         try:
             success_message = (
                 f"🎉 <b>Ajoyib xabar!</b>\n\n"
@@ -213,14 +216,13 @@ async def admin_decision(call: types.CallbackQuery):
             logging.error(f"Xaridorga yuborishda xato: {e}")
             
     elif action == 'rej':
-        # 1. Admin ekranini bir lahzada yangilash
+        # Admin xabarini tezkor yangilash va tugmalarni o'chirish
         try:
-            await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", parse_mode="HTML")
-            await call.answer("To'lov rad etildi!", show_alert=False)
+            await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", reply_markup=None, parse_mode="HTML")
         except Exception as e:
             logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # 2. Orqa fonda xaridorga yuborish
+        # Orqa fonda foydalanuvchiga yuborish
         try:
             reject_message = (
                 f"⚠️ <b>To'lov tasdiqlanmadi!</b>\n\n"
