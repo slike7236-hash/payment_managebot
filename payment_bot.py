@@ -159,9 +159,10 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
                 "⚠️ Pulni tekshiring va qaror qabul qiling:"
             )
 
+            # Callback_data ichidan kitob nomini olib tashladik (Xatolik bermasligi uchun)
             inline_kb = InlineKeyboardMarkup(row_width=2)
-            btn_approve = InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"app_{message.from_user.id}_{book_name}")
-            btn_reject = InlineKeyboardButton(text="❌ Rad etish", callback_data=f"rej_{message.from_user.id}_{book_name}")
+            btn_approve = InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"app_{message.from_user.id}")
+            btn_reject = InlineKeyboardButton(text="❌ Rad etish", callback_data=f"rej_{message.from_user.id}")
             inline_kb.add(btn_approve, btn_reject)
 
             if message.photo:
@@ -177,51 +178,58 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
             await message.reply("❌ Iltimos, faqat rasm formatidagi chekni yuboring!")
         return
 
-# 4. ADMIN QAROR QABUL QILGANDA (TEZKOR VERSİYA)
+# 4. ADMIN QAROR QABUL QILGANDA (ENG TEZKOR VA XATOSIZ VERSIYA)
 @dp.callback_query_handler(lambda call: call.data.startswith(('app_', 'rej_')), state="*")
 async def admin_decision(call: types.CallbackQuery):
     data_parts = call.data.split('_')
     action = data_parts[0]
     buyer_id = int(data_parts[1])
-    book_name = data_parts[2]
     
+    # Kitob nomini xabar matnining o'zidan qidirib topamiz
+    book_name = "Tanlangan kitob"
+    if "Sotib olmoqchi:" in call.message.caption:
+        try:
+            book_name = call.message.caption.split("Sotib olmoqchi:")[1].split("\n")[0].strip()
+        except Exception:
+            pass
+
     if action == 'app':
-        # 1. BIRINCHI BO'LIB ADMIN EKRANINI YANGILAYMIZ (Kutish vaqtini yo'qotish uchun)
+        # 1. Admin ekranini bir lahzada yangilash
         try:
             await call.message.edit_caption(caption=call.message.caption + f"\n\n🟢 <b>TASDIQLANDI. Kitob ochildi!</b>", parse_mode="HTML")
             await call.answer("To'lov tasdiqlandi!", show_alert=False)
         except Exception as e:
-            logging.error(f"Admin ekranni yangilashda xato: {e}")
+            logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # 2. KEYIN ORQA FONDA FOYDALANUVCHIGA XABAR YUBORAMIZ
+        # 2. Orqa fonda xaridorga yuborish
         try:
             success_message = (
                 f"🎉 <b>Ajoyib xabar!</b>\n\n"
-                f"✅ Sizning <b>{book_name}</b> kitobi uchun qilgan to'lovingiz muvaffaqiyatli tasdiqlandi!\n"
+                f"✅ Sizning <b>{book_name}</b> uchun qilgan to'lovingiz muvaffaqiyatli tasdiqlandi!\n"
                 f"🚀 Biz siz uchun ushbu kitobni ochib qo'ydik. Mini App'ga kirib foydalanishingiz mumkin!"
             )
             await bot.send_message(chat_id=buyer_id, text=success_message, parse_mode="HTML")
         except Exception as e:
-            logging.error(f"Xaridorga tasdiq xabarini yuborishda xato: {e}")
+            logging.error(f"Xaridorga yuborishda xato: {e}")
             
     elif action == 'rej':
-        # 1. BIRINCHI BO'LIB ADMIN EKRANINI YANGILAYMIZ
+        # 1. Admin ekranini bir lahzada yangilash
         try:
             await call.message.edit_caption(caption=call.message.caption + f"\n\n🔴 <b>RAD ETILDI. Xaridorga xabar berildi.</b>", parse_mode="HTML")
             await call.answer("To'lov rad etildi!", show_alert=False)
         except Exception as e:
-            logging.error(f"Admin ekranni yangilashda xato: {e}")
+            logging.error(f"Ekranni yangilashda xato: {e}")
 
-        # 2. KEYIN ORQA FONDA FOYDALANUVCHIGA XABAR YUBORAMIZ
+        # 2. Orqa fonda xaridorga yuborish
         try:
             reject_message = (
                 f"⚠️ <b>To'lov tasdiqlanmadi!</b>\n\n"
-                f"Kechirasiz, siz yuborgan chek orqali <b>{book_name}</b> kitobi uchun to'lov topilmadi yoki xato chek yuborildi.\n"
+                f"Kechirasiz, siz yuborgan chek orqali <b>{book_name}</b> uchun to'lov topilmadi.\n"
                 f"Iltimos, pul ko'chirmasini qaytadan tekshirib ko'ring yoki adminga murojaat qiling."
             )
             await bot.send_message(chat_id=buyer_id, text=reject_message, parse_mode="HTML")
         except Exception as e:
-            logging.error(f"Xaridorga rad etish xabarini yuborishda xato: {e}")
+            logging.error(f"Xaridorga yuborishda xato: {e}")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
