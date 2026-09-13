@@ -1,3 +1,4 @@
+aiogram
+python-dotenv
 Flask
 gunicorn
-python-dotenv
