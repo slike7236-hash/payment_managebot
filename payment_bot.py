@@ -1,4 +1,7 @@
+import os
 import logging
+from dotenv import load_dotenv
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -6,11 +9,14 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
+# .env faylini yuklaymiz
+load_dotenv()
+
 # LOGGING
 logging.basicConfig(level=logging.INFO)
 
 # SOZLAMALAR
-API_TOKEN = '8829040058:AAHBzigI7ASmqdHJ9DRhzL5KxrmzmpkoEKo'  # Tokeningiz
+API_TOKEN = os.getenv("BOT_TOKEN")  # Token .env faylidan xavfsiz o'qiladi
 ADMIN_ID = 651936747  # Sizning Telegram ID raqamingiz
 
 # FSM Storage
@@ -38,7 +44,7 @@ cancel_menu.add(KeyboardButton("❌ Cancel"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.finish()
     users_list.add(message.from_user.id)
-    
+
     welcome_text = (
         "💳 <b>🇺🇿 My Vocabularies — To'lov tizimiga xush kelibsiz!</b>\n"
         "Kitobga to'lov qilish uchun pastdagi <b>🛍 Buy a Book</b> tugmasini bosing.\n\n"
@@ -52,11 +58,11 @@ async def cmd_start(message: types.Message, state: FSMContext):
 @dp.message_handler(commands=['stat'], state="*")
 async def cmd_stat(message: types.Message):
     if message.from_user.id == ADMIN_ID:
-        await message.reply(f"📊 <b>Bot statistikasi:</b>\n\n👥 Jami obunachilar soni: <b>{len(users_list)}</b> ta", parse_mode="HTML")
+        await message.reply(f"📊 Bot statistikasi:\n\n👥 Jami obunachilar soni: {len(users_list)} ta", parse_mode="HTML")
     else:
         await message.reply("❌ Bu buyruq faqat admin uchun!")
 
-# 3. UNIVERSAL REKLAMA FUNKSIYASI (MATN, RASM, VIDEO)
+# 3. UNIVERSAL REKLAMA VA BUYURTMA FUNKSIYASI
 @dp.message_handler(content_types=[types.ContentType.TEXT, types.ContentType.PHOTO, types.ContentType.VIDEO], state="*")
 async def handle_all_messages(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
@@ -138,7 +144,7 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
         return
 
     current_state = await state.get_state()
-    
+
     # Kitob nomini qabul qilish bosqichi
     if current_state == OrderProcess.waiting_for_book_name.state:
         if message.text:
@@ -149,11 +155,11 @@ async def handle_all_messages(message: types.Message, state: FSMContext):
                 "💳 <b>🇺🇿 TO'LOV:</b> To'lovni amalga oshirish uchun quyidagi karta raqamlaridan biriga pul o'tkazing:\n"
                 "💳 <b>🇬🇧 PAYMENT:</b> To proceed with the payment, transfer the funds to one of the cards below:\n\n"
                 "🇺🇿 <b>National Card (Uzcard/Humo):</b>\n"
-                "• <b>Card Number:</b> <code>5414683858776628</code>\n"  # <-- Bu yerga Uzcard/Humo raqamini yozing
+                "• <b>Card Number:</b> <code>5414683858776628</code>\n"
                 "• <b>Holder:</b> Abdugani Yoldoshev\n"
                 "• <b>Price:</b> 25,000 UZS\n\n"
                 "🌐 <b>International Card (Visa):</b>\n"
-                "• <b>Card Number:</b> <code>4466136910024448</code>\n"  # <-- Bu yerga Visa karta raqamini yozing
+                "• <b>Card Number:</b> <code>4466136910024448</code>\n"
                 "• <b>Holder:</b> Abdugani Yoldoshev\n"
                 "• <b>Price:</b> $2.00 USD\n\n"
                 "--- --- --- --- --- --- --- --- ---\n"
@@ -231,7 +237,7 @@ async def admin_decision(call: types.CallbackQuery):
     data_parts = call.data.split('_')
     action = data_parts[0]
     buyer_id = int(data_parts[1])
-    
+
     book_name = "Tanlangan kitob"
     if call.message.caption and "Sotib olmoqchi:" in call.message.caption:
         try:
