@@ -1,6 +1,9 @@
 name: Run Telegram Bot
 
 on:
+  schedule:
+    # Har 15 daqiqada bir marta ishga tushadi
+    - cron: '*/14 * * * *'
   push:
     branches: [ main ]
   workflow_dispatch:
