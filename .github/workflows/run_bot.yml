@@ -13,4 +13,4 @@ jobs:
       - name: Send Ping to Render and hold
         run: |
           curl -s https://payment-managebot.onrender.com || echo "Ping yuborildi"
-          sleep 45
+          sleep 40
